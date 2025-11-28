@@ -7,50 +7,87 @@ const db = new sqlite3.Database(dbPath);
 
 // Initialize the database
 function initDatabase() {
-  const createTableSQL = `
-    CREATE TABLE IF NOT EXISTS proxy_routes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT UNIQUE NOT NULL,
-      target_url TEXT NOT NULL,
-      enabled BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+  // Check if cost column exists, if not, add it
+  db.get("PRAGMA table_info(proxy_routes)", (err, row) => {
+    if (err) {
+      console.error('Error checking table schema:', err.message);
+    } else {
+      // If the table doesn't exist yet, create it with the cost column
+      if (!row) {
+        const createTableSQL = `
+          CREATE TABLE IF NOT EXISTS proxy_routes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            target_url TEXT NOT NULL,
+            enabled BOOLEAN DEFAULT 1,
+            cost_usdc REAL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
 
-  return new Promise((resolve, reject) => {
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        console.error('Error creating proxy_routes table:', err.message);
-        reject(err);
-      } else {
-        console.log('Proxy routes table created or already exists');
-        
-        // Insert default route if table is empty
-        db.get("SELECT COUNT(*) as count FROM proxy_routes", (err, row) => {
+        db.run(createTableSQL, (err) => {
           if (err) {
-            console.error('Error checking table count:', err.message);
-            reject(err);
-          } else if (row.count === 0) {
-            // Insert a default route for /api
-            const defaultRouteSQL = `
-              INSERT INTO proxy_routes (path, target_url, enabled) 
-              VALUES ('/api', ?, 1)
-            `;
-            db.run(defaultRouteSQL, [process.env.API_URL || 'http://localhost:3000'], (err) => {
-              if (err) {
-                console.error('Error inserting default route:', err.message);
-              } else {
-                console.log('Default route for /api added');
-              }
-              resolve();
-            });
+            console.error('Error creating proxy_routes table:', err.message);
           } else {
-            resolve();
+            console.log('Proxy routes table created with cost column');
+            insertDefaultRouteIfEmpty();
+          }
+        });
+      } else {
+        // Check if cost column exists
+        db.all("PRAGMA table_info(proxy_routes)", (err, columns) => {
+          if (err) {
+            console.error('Error getting table schema:', err.message);
+          } else {
+            const hasCostColumn = columns.some(col => col.name === 'cost_usdc');
+            if (!hasCostColumn) {
+              // Add the cost column to existing table
+              db.run("ALTER TABLE proxy_routes ADD COLUMN cost_usdc REAL DEFAULT 0", (err) => {
+                if (err) {
+                  console.error('Error adding cost column:', err.message);
+                } else {
+                  console.log('Cost column added to existing table');
+                  insertDefaultRouteIfEmpty();
+                }
+              });
+            } else {
+              console.log('Proxy routes table already has cost column');
+              insertDefaultRouteIfEmpty();
+            }
           }
         });
       }
-    });
+    }
+  });
+
+  return new Promise((resolve, reject) => {
+    // We'll handle the database setup asynchronously, but return resolve immediately
+    // since the db operations are already started above
+    resolve();
+  });
+}
+
+// Helper function to insert default route
+function insertDefaultRouteIfEmpty() {
+  // Insert default route if table is empty
+  db.get("SELECT COUNT(*) as count FROM proxy_routes", (err, row) => {
+    if (err) {
+      console.error('Error checking table count:', err.message);
+    } else if (row.count === 0) {
+      // Insert a default route for /api
+      const defaultRouteSQL = `
+        INSERT INTO proxy_routes (path, target_url, enabled, cost_usdc)
+        VALUES ('/api', ?, 1, 0)
+      `;
+      db.run(defaultRouteSQL, [process.env.API_URL || 'http://localhost:3000'], (err) => {
+        if (err) {
+          console.error('Error inserting default route:', err.message);
+        } else {
+          console.log('Default route for /api added');
+        }
+      });
+    }
   });
 }
 
@@ -97,30 +134,30 @@ function getRouteById(id) {
 }
 
 // Add a new route
-function addRoute(path, target_url) {
+function addRoute(path, target_url, cost_usdc = 0) {
   return new Promise((resolve, reject) => {
-    const sql = 'INSERT INTO proxy_routes (path, target_url, enabled) VALUES (?, ?, 1)';
-    db.run(sql, [path, target_url], function(err) {
+    const sql = 'INSERT INTO proxy_routes (path, target_url, cost_usdc, enabled) VALUES (?, ?, ?, 1)';
+    db.run(sql, [path, target_url, cost_usdc || 0], function(err) {
       if (err) {
         console.error('Error adding route:', err.message);
         reject(err);
       } else {
-        resolve({ id: this.lastID, path, target_url, enabled: 1 });
+        resolve({ id: this.lastID, path, target_url, cost_usdc: cost_usdc || 0, enabled: 1 });
       }
     });
   });
 }
 
 // Update an existing route
-function updateRoute(id, path, target_url, enabled) {
+function updateRoute(id, path, target_url, enabled, cost_usdc) {
   return new Promise((resolve, reject) => {
-    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    db.run(sql, [path, target_url, enabled, id], function(err) {
+    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, cost_usdc = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    db.run(sql, [path, target_url, enabled, cost_usdc || 0, id], function(err) {
       if (err) {
         console.error('Error updating route:', err.message);
         reject(err);
       } else {
-        resolve({ changes: this.changes, id, path, target_url, enabled });
+        resolve({ changes: this.changes, id, path, target_url, enabled, cost_usdc: cost_usdc || 0 });
       }
     });
   });

@@ -43,15 +43,20 @@
                     <div class="card-body">
                         <form id="add-route-form">
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label for="route-path" class="form-label">Path</label>
                                     <input type="text" class="form-control" id="route-path" placeholder="/api" required>
                                     <div class="form-text">Enter the path that should be proxied (e.g., /api)</div>
                                 </div>
-                                <div class="col-md-5 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label for="target-url" class="form-label">Target URL</label>
                                     <input type="url" class="form-control" id="target-url" placeholder="http://localhost:3000" required>
                                     <div class="form-text">Enter the target URL to forward requests to</div>
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label for="route-cost" class="form-label">Cost (USDC)</label>
+                                    <input type="number" class="form-control" id="route-cost" placeholder="0" step="0.0001" min="0" value="0">
+                                    <div class="form-text">Access cost in USDC</div>
                                 </div>
                                 <div class="col-md-2 mb-3">
                                     <label class="form-label">Status</label><br>
@@ -100,6 +105,10 @@
                             <input type="url" class="form-control" id="edit-target-url" required>
                         </div>
                         <div class="mb-3">
+                            <label for="edit-route-cost" class="form-label">Cost (USDC)</label>
+                            <input type="number" class="form-control" id="edit-route-cost" step="0.0001" min="0">
+                        </div>
+                        <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="edit-route-enabled">
                                 <label class="form-check-label" for="edit-route-enabled">Enabled</label>
@@ -126,15 +135,16 @@
                 
                 const path = document.getElementById('route-path').value;
                 const targetUrl = document.getElementById('target-url').value;
+                const cost = parseFloat(document.getElementById('route-cost').value) || 0;
                 const enabled = document.getElementById('route-enabled').checked ? 1 : 0;
-                
+
                 try {
                     const response = await fetch('/api/routes', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ path, target_url: targetUrl, enabled })
+                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, enabled })
                     });
                     
                     if (response.ok) {
@@ -154,15 +164,16 @@
                 const id = document.getElementById('edit-route-id').value;
                 const path = document.getElementById('edit-route-path').value;
                 const targetUrl = document.getElementById('edit-target-url').value;
+                const cost = parseFloat(document.getElementById('edit-route-cost').value) || 0;
                 const enabled = document.getElementById('edit-route-enabled').checked ? 1 : 0;
-                
+
                 try {
                     const response = await fetch(`/api/routes/${id}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ path, target_url: targetUrl, enabled })
+                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, enabled })
                     });
                     
                     if (response.ok) {
@@ -199,6 +210,7 @@
                                 <div>
                                     <h5 class="card-title">${route.path}</h5>
                                     <p class="card-text text-muted">${route.target_url}</p>
+                                    <p class="card-text"><small class="text-muted">Cost: ${route.cost_usdc} USDC</small></p>
                                 </div>
                                 <div>
                                     <span class="badge ${route.enabled ? 'bg-success' : 'bg-secondary'} status-badge">
@@ -241,6 +253,7 @@
                 document.getElementById('edit-route-id').value = route.id;
                 document.getElementById('edit-route-path').value = route.path;
                 document.getElementById('edit-target-url').value = route.target_url;
+                document.getElementById('edit-route-cost').value = route.cost_usdc;
                 document.getElementById('edit-route-enabled').checked = route.enabled;
             } catch (error) {
                 alert('Error loading route for editing: ' + error.message);

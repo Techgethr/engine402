@@ -49,7 +49,7 @@ app.get('/api/routes/:id', async (req, res) => {
 
 app.post('/api/routes', async (req, res) => {
   try {
-    const { path, target_url, enabled } = req.body;
+    const { path, target_url, enabled, cost_usdc } = req.body;
     if (!path || !target_url) {
       return res.status(400).json({ error: 'Path and target URL are required' });
     }
@@ -59,7 +59,7 @@ app.post('/api/routes', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const newRoute = await addRoute(path, target_url);
+    const newRoute = await addRoute(path, target_url, cost_usdc);
     res.status(201).json(newRoute);
   } catch (error) {
     console.error('Error adding route:', error);
@@ -69,7 +69,7 @@ app.post('/api/routes', async (req, res) => {
 
 app.put('/api/routes/:id', async (req, res) => {
   try {
-    const { path, target_url, enabled } = req.body;
+    const { path, target_url, enabled, cost_usdc } = req.body;
     const id = req.params.id;
 
     if (!path || !target_url) {
@@ -81,7 +81,7 @@ app.put('/api/routes/:id', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const updatedRoute = await updateRoute(id, path, target_url, enabled);
+    const updatedRoute = await updateRoute(id, path, target_url, enabled, cost_usdc);
     if (updatedRoute.changes > 0) {
       res.json(updatedRoute);
     } else {

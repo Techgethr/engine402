@@ -2,9 +2,14 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
+const { createThirdwebClient } = require("thirdweb");
+const { facilitator } = require("thirdweb/x402");
+require('dotenv').config();
 const app = express();
+
 const PORT = process.env.PORT || 4000;
-const API_URL = process.env.API_URL || 'http://localhost:3000'; // Default to API running on port 3000
+
+
 
 // Import database functions
 const {
@@ -21,6 +26,15 @@ const {
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const client = createThirdwebClient({
+  secretKey: process.env.THIRDWEB_SECRET_KEY,
+});
+
+const thirdwebFacilitator = facilitator({
+  client: client,
+  serverWalletAddress: process.env.THIRDWEB_WALLET_ADDRESS,
+});
 
 // API routes for managing proxy configurations
 app.get('/api/routes', async (req, res) => {
@@ -49,7 +63,7 @@ app.get('/api/routes/:id', async (req, res) => {
 
 app.post('/api/routes', async (req, res) => {
   try {
-    const { path, target_url, enabled, cost_usdc } = req.body;
+    const { path, target_url, enabled, cost_usdc, auth_header } = req.body;
     if (!path || !target_url) {
       return res.status(400).json({ error: 'Path and target URL are required' });
     }
@@ -59,7 +73,7 @@ app.post('/api/routes', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const newRoute = await addRoute(path, target_url, cost_usdc);
+    const newRoute = await addRoute(path, target_url, cost_usdc, auth_header);
     res.status(201).json(newRoute);
   } catch (error) {
     console.error('Error adding route:', error);
@@ -69,7 +83,7 @@ app.post('/api/routes', async (req, res) => {
 
 app.put('/api/routes/:id', async (req, res) => {
   try {
-    const { path, target_url, enabled, cost_usdc } = req.body;
+    const { path, target_url, enabled, cost_usdc, auth_header } = req.body;
     const id = req.params.id;
 
     if (!path || !target_url) {
@@ -81,7 +95,7 @@ app.put('/api/routes/:id', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const updatedRoute = await updateRoute(id, path, target_url, enabled, cost_usdc);
+    const updatedRoute = await updateRoute(id, path, target_url, enabled, cost_usdc, auth_header);
     if (updatedRoute.changes > 0) {
       res.json(updatedRoute);
     } else {
@@ -135,8 +149,8 @@ app.use(async (req, res, next) => {
     for (const route of enabledRoutes) {
       // Check if the request path starts with the route path
       if (req.path.startsWith(route.path)) {
-        // Create proxy middleware for this specific route
-        const routeProxy = createProxyMiddleware({
+        // Create proxy middleware options
+        const proxyOptions = {
           target: route.target_url,
           changeOrigin: true,
           pathRewrite: {
@@ -145,11 +159,19 @@ app.use(async (req, res, next) => {
           logProvider: () => console,
           onProxyReq: (proxyReq, req, res) => {
             console.log(`Proxying ${req.method} request to: ${route.target_url}${req.url}`);
+
+            // Add authentication header if configured for this route
+            if (route.auth_header) {
+              proxyReq.setHeader('Authorization', route.auth_header);
+            }
           },
           onProxyRes: (proxyRes, req, res) => {
             console.log(`Received response with status: ${proxyRes.statusCode}`);
           }
-        });
+        };
+
+        // Create proxy middleware for this specific route
+        const routeProxy = createProxyMiddleware(proxyOptions);
 
         // Execute the proxy middleware for this specific route
         return routeProxy(req, res, next);

@@ -48,7 +48,7 @@
                                     <input type="text" class="form-control" id="route-path" placeholder="/api" required>
                                     <div class="form-text">Enter the path that should be proxied (e.g., /api)</div>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label for="target-url" class="form-label">Target URL</label>
                                     <input type="url" class="form-control" id="target-url" placeholder="http://localhost:3000" required>
                                     <div class="form-text">Enter the target URL to forward requests to</div>
@@ -58,14 +58,16 @@
                                     <input type="number" class="form-control" id="route-cost" placeholder="0" step="0.0001" min="0" value="0">
                                     <div class="form-text">Access cost in USDC</div>
                                 </div>
-                                <div class="col-md-2 mb-3">
-                                    <label class="form-label">Status</label><br>
-                                    <div class="form-check form-switch">
+                                <div class="col-md-3 mb-3">
+                                    <label for="auth-header" class="form-label">Auth Header</label>
+                                    <input type="text" class="form-control" id="auth-header" placeholder="Bearer token123">
+                                    <div class="form-text">Authorization header value (e.g., Bearer token123)</div>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <div class="form-check form-switch mb-3">
                                         <input class="form-check-input" type="checkbox" id="route-enabled" checked>
                                         <label class="form-check-label" for="route-enabled">Enabled</label>
                                     </div>
-                                </div>
-                                <div class="col-md-1 d-flex align-items-end">
                                     <button type="submit" class="btn btn-primary">Add</button>
                                 </div>
                             </div>
@@ -109,6 +111,11 @@
                             <input type="number" class="form-control" id="edit-route-cost" step="0.0001" min="0">
                         </div>
                         <div class="mb-3">
+                            <label for="edit-auth-header" class="form-label">Auth Header</label>
+                            <input type="text" class="form-control" id="edit-auth-header" placeholder="Bearer token123">
+                            <div class="form-text">Authorization header value (e.g., Bearer token123)</div>
+                        </div>
+                        <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="edit-route-enabled">
                                 <label class="form-check-label" for="edit-route-enabled">Enabled</label>
@@ -136,6 +143,7 @@
                 const path = document.getElementById('route-path').value;
                 const targetUrl = document.getElementById('target-url').value;
                 const cost = parseFloat(document.getElementById('route-cost').value) || 0;
+                const authHeader = document.getElementById('auth-header').value || null;
                 const enabled = document.getElementById('route-enabled').checked ? 1 : 0;
 
                 try {
@@ -144,7 +152,7 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, enabled })
+                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, auth_header: authHeader, enabled })
                     });
                     
                     if (response.ok) {
@@ -165,6 +173,7 @@
                 const path = document.getElementById('edit-route-path').value;
                 const targetUrl = document.getElementById('edit-target-url').value;
                 const cost = parseFloat(document.getElementById('edit-route-cost').value) || 0;
+                const authHeader = document.getElementById('edit-auth-header').value || null;
                 const enabled = document.getElementById('edit-route-enabled').checked ? 1 : 0;
 
                 try {
@@ -173,7 +182,7 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, enabled })
+                        body: JSON.stringify({ path, target_url: targetUrl, cost_usdc: cost, auth_header: authHeader, enabled })
                     });
                     
                     if (response.ok) {
@@ -211,6 +220,7 @@
                                     <h5 class="card-title">${route.path}</h5>
                                     <p class="card-text text-muted">${route.target_url}</p>
                                     <p class="card-text"><small class="text-muted">Cost: ${route.cost_usdc} USDC</small></p>
+                                    ${route.auth_header ? `<p class="card-text"><small class="text-muted">Auth: ${route.auth_header.substring(0, 30)}${route.auth_header.length > 30 ? '...' : ''}</small></p>` : ''}
                                 </div>
                                 <div>
                                     <span class="badge ${route.enabled ? 'bg-success' : 'bg-secondary'} status-badge">
@@ -254,6 +264,7 @@
                 document.getElementById('edit-route-path').value = route.path;
                 document.getElementById('edit-target-url').value = route.target_url;
                 document.getElementById('edit-route-cost').value = route.cost_usdc;
+                document.getElementById('edit-auth-header').value = route.auth_header || '';
                 document.getElementById('edit-route-enabled').checked = route.enabled;
             } catch (error) {
                 alert('Error loading route for editing: ' + error.message);

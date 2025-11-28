@@ -21,6 +21,7 @@ function initDatabase() {
             target_url TEXT NOT NULL,
             enabled BOOLEAN DEFAULT 1,
             cost_usdc REAL DEFAULT 0,
+            auth_header TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -30,7 +31,7 @@ function initDatabase() {
           if (err) {
             console.error('Error creating proxy_routes table:', err.message);
           } else {
-            console.log('Proxy routes table created with cost column');
+            console.log('Proxy routes table created with cost and auth header columns');
             insertDefaultRouteIfEmpty();
           }
         });
@@ -41,6 +42,8 @@ function initDatabase() {
             console.error('Error getting table schema:', err.message);
           } else {
             const hasCostColumn = columns.some(col => col.name === 'cost_usdc');
+            const hasAuthColumn = columns.some(col => col.name === 'auth_header');
+
             if (!hasCostColumn) {
               // Add the cost column to existing table
               db.run("ALTER TABLE proxy_routes ADD COLUMN cost_usdc REAL DEFAULT 0", (err) => {
@@ -48,11 +51,15 @@ function initDatabase() {
                   console.error('Error adding cost column:', err.message);
                 } else {
                   console.log('Cost column added to existing table');
-                  insertDefaultRouteIfEmpty();
+                  // Continue with auth header check
+                  checkAndAddAuthHeaderColumn();
                 }
               });
+            } else if (!hasAuthColumn) {
+              // Cost column exists, now check auth column
+              checkAndAddAuthHeaderColumn();
             } else {
-              console.log('Proxy routes table already has cost column');
+              console.log('Proxy routes table already has all required columns');
               insertDefaultRouteIfEmpty();
             }
           }
@@ -68,6 +75,22 @@ function initDatabase() {
   });
 }
 
+// Helper function to check and add auth header column
+function checkAndAddAuthHeaderColumn() {
+  db.run("ALTER TABLE proxy_routes ADD COLUMN auth_header TEXT", (err) => {
+    if (err && err.message.includes('duplicate column name')) {
+      // Column already exists, which is fine
+      console.log('Auth header column already exists');
+    } else if (err) {
+      console.error('Error adding auth header column:', err.message);
+    } else {
+      console.log('Auth header column added to existing table');
+    }
+    // Always try to insert default route
+    insertDefaultRouteIfEmpty();
+  });
+}
+
 // Helper function to insert default route
 function insertDefaultRouteIfEmpty() {
   // Insert default route if table is empty
@@ -77,8 +100,8 @@ function insertDefaultRouteIfEmpty() {
     } else if (row.count === 0) {
       // Insert a default route for /api
       const defaultRouteSQL = `
-        INSERT INTO proxy_routes (path, target_url, enabled, cost_usdc)
-        VALUES ('/api', ?, 1, 0)
+        INSERT INTO proxy_routes (path, target_url, enabled, cost_usdc, auth_header)
+        VALUES ('/api', ?, 1, 0, NULL)
       `;
       db.run(defaultRouteSQL, [process.env.API_URL || 'http://localhost:3000'], (err) => {
         if (err) {
@@ -134,30 +157,30 @@ function getRouteById(id) {
 }
 
 // Add a new route
-function addRoute(path, target_url, cost_usdc = 0) {
+function addRoute(path, target_url, cost_usdc = 0, auth_header = null) {
   return new Promise((resolve, reject) => {
-    const sql = 'INSERT INTO proxy_routes (path, target_url, cost_usdc, enabled) VALUES (?, ?, ?, 1)';
-    db.run(sql, [path, target_url, cost_usdc || 0], function(err) {
+    const sql = 'INSERT INTO proxy_routes (path, target_url, cost_usdc, auth_header, enabled) VALUES (?, ?, ?, ?, 1)';
+    db.run(sql, [path, target_url, cost_usdc || 0, auth_header], function(err) {
       if (err) {
         console.error('Error adding route:', err.message);
         reject(err);
       } else {
-        resolve({ id: this.lastID, path, target_url, cost_usdc: cost_usdc || 0, enabled: 1 });
+        resolve({ id: this.lastID, path, target_url, cost_usdc: cost_usdc || 0, auth_header: auth_header, enabled: 1 });
       }
     });
   });
 }
 
 // Update an existing route
-function updateRoute(id, path, target_url, enabled, cost_usdc) {
+function updateRoute(id, path, target_url, enabled, cost_usdc, auth_header) {
   return new Promise((resolve, reject) => {
-    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, cost_usdc = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    db.run(sql, [path, target_url, enabled, cost_usdc || 0, id], function(err) {
+    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, cost_usdc = ?, auth_header = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    db.run(sql, [path, target_url, enabled, cost_usdc || 0, auth_header, id], function(err) {
       if (err) {
         console.error('Error updating route:', err.message);
         reject(err);
       } else {
-        resolve({ changes: this.changes, id, path, target_url, enabled, cost_usdc: cost_usdc || 0 });
+        resolve({ changes: this.changes, id, path, target_url, enabled, cost_usdc: cost_usdc || 0, auth_header: auth_header });
       }
     });
   });

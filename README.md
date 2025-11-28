@@ -8,6 +8,7 @@ A flexible proxy server with a web interface for managing proxy routes. The prox
 - **Dynamic Routing**: Routes are loaded from a SQLite database at runtime
 - **Route Management**: Enable/disable routes as needed
 - **Cost-based Access**: Set USDC cost for accessing each route
+- **Authentication Headers**: Set authorization headers for private endpoints
 - **Persistent Configuration**: Route settings are stored in a database
 - **Logging**: Request forwarding is logged to console
 
@@ -57,6 +58,7 @@ API_URL=http://localhost:3000
    - **Path**: The path that should be proxied (e.g., `/api`)
    - **Target URL**: The URL to forward requests to (e.g., `http://localhost:3000`)
    - **Cost (USDC)**: The cost in USDC to access this route (optional)
+   - **Auth Header**: Authorization header value for private endpoints (e.g., `Bearer token123`)
    - **Status**: Enable or disable the route
 
 4. The proxy will automatically start forwarding requests based on your configured routes
@@ -111,6 +113,7 @@ CREATE TABLE proxy_routes (
   target_url TEXT NOT NULL,
   enabled BOOLEAN DEFAULT 1,
   cost_usdc REAL DEFAULT 0,
+  auth_header TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

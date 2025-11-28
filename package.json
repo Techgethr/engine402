@@ -1,7 +1,7 @@
 {
-  "name": "proxy-project",
+  "name": "engine-402",
   "version": "1.0.0",
-  "description": "Proxy server for redirecting requests to API",
+  "description": "A proxy server for redirecting requests to API enabling micropayments for AI agents using X402 protocol",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

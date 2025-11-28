@@ -1,16 +1,18 @@
-# Generic Proxy Server
+# Engine 402 - AI Agent API Gateway
 
-A flexible proxy server with a web interface for managing proxy routes. The proxy allows administrators to configure which routes should be proxied to specific target URLs via a web-based interface.
+A decentralized API gateway that enables common APIs to be adapted for AI agents through payment-based access instead of traditional API keys. Built with the X402 protocol, it allows developers to monetize their APIs by accepting micropayments in USDC rather than managing API credentials.
 
 ## Features
 
-- **Web-based Configuration**: Admin interface to add, edit, and delete proxy routes
-- **Dynamic Routing**: Routes are loaded from a SQLite database at runtime
-- **Route Management**: Enable/disable routes as needed
-- **Cost-based Access**: Set USDC cost for accessing each route
-- **Authentication Headers**: Set authorization headers for private endpoints
+- **AI Agent Ready**: Designed specifically for integration with AI agents that can make direct payments
+- **Decentralized Access Control**: No API keys needed - access is granted through on-chain payments
+- **Flexible API Adaptation**: Convert any existing API endpoint into a pay-per-use service
+- **Web-based Configuration**: Admin interface to add, edit, and delete API routes
+- **Dynamic Pricing**: Set different USDC costs for different API endpoints
+- **Network Flexibility**: Configure routes for test (Avalanche Fuji) or production (Avalanche) networks
+- **Authentication Headers**: Optionally add authorization headers for private endpoints
 - **Persistent Configuration**: Route settings are stored in a database
-- **Logging**: Request forwarding is logged to console
+- **Request Logging**: Monitor API usage and performance
 
 ## Prerequisites
 
@@ -37,12 +39,14 @@ A flexible proxy server with a web interface for managing proxy routes. The prox
 The proxy server can be configured using environment variables:
 
 - `PORT`: Port on which the proxy server will run (default: 4000)
-- `API_URL`: Default target URL for the initial `/api` route (default: `http://localhost:3000`)
+- `PAY_TO`: Wallet address that receives payments from API usage
+- `FACILITATOR_URL`: URL of the X402 facilitator service (default: `https://facilitator.payai.network`)
 
 Example `.env` file:
 ```env
 PORT=4000
-API_URL=http://localhost:3000
+PAY_TO=0xYourWalletAddressHere
+FACILITATOR_URL=https://facilitator.payai.network
 ```
 
 ## Usage
@@ -54,14 +58,18 @@ API_URL=http://localhost:3000
 
 2. Open your browser and navigate to `http://localhost:4000` to access the admin interface
 
-3. Add proxy routes using the web interface:
-   - **Path**: The path that should be proxied (e.g., `/api`)
-   - **Target URL**: The URL to forward requests to (e.g., `http://localhost:3000`)
-   - **Cost (USDC)**: The cost in USDC to access this route (optional)
-   - **Auth Header**: Authorization header value for private endpoints (e.g., `Bearer token123`)
+3. Add API routes using the web interface:
+   - **Path**: The path that should be proxied (e.g., `/openai`, `/weather`, `/data`)
+   - **Target URL**: The URL to forward requests to (e.g., `https://api.openai.com`, `https://api.weather.com`)
+   - **Cost (USDC)**: The cost in USDC to access this route (e.g., 0.0001 for small requests)
+   - **Network**: Test (Avalanche Fuji) for development, Production (Avalanche) for live usage
+   - **Auth Header**: Authorization header value for private endpoints (e.g., `Bearer secret123`)
    - **Status**: Enable or disable the route
+   - **Enabled**: Toggle to activate/deactivate the route
 
-4. The proxy will automatically start forwarding requests based on your configured routes
+4. The gateway will automatically start forwarding requests based on your configured routes, requiring payments for routes with costs > 0
+
+5. If you want to disable payments for a route, set the cost to 0.
 
 ## API Routes
 
@@ -75,49 +83,32 @@ The proxy server also exposes API endpoints for managing routes programmatically
 - `GET /health` - Health check endpoint
 - `GET /` - Admin web interface
 
-## Project Structure
-
-```
-Proxy/
-├── server.js          # Main server file
-├── db.js              # Database operations
-├── public/            # Static files for web interface
-│   └── index.html     # Admin interface
-├── package.json       # Dependencies and scripts
-└── proxy_config.db    # SQLite database (auto-generated)
-```
-
 ## How It Works
 
-The proxy server operates by:
+The Engine 402 API gateway operates by:
 
-1. Loading all enabled routes from the SQLite database
+1. Loading all enabled routes from the SQLite database with cost and network configuration
 2. Matching incoming requests to configured routes (longest path match first)
-3. Forwarding requests to the appropriate target URL based on the route configuration
-4. Logging the request forwarding for monitoring
+3. For routes with cost > 0, validating payment through the X402 protocol
+4. Forwarding requests to the appropriate target API after successful payment
+5. Using the specified network (test/production) based on route configuration
 
 ## Example Configuration
 
-To proxy requests from `/api` to `http://localhost:3000`:
-1. Add a route with Path: `/api` and Target URL: `http://localhost:3000`
-2. When a request is made to `http://localhost:4000/api/users`, it will be forwarded to `http://localhost:3000/users`
+To adapt the OpenAI compatible API for AI agents:
+1. Add a route with Path: `/openai` and Target URL: `https://api.your-openai-compatible-service.com`
+2. Set Cost: `0.001` USDC (for small API calls)
+3. Set Network: `Production (Avalanche)`
+4. Set Auth Header: `Bearer your-openai-compatible-service-api-key` (to authenticate with OpenAI compatible service backend)
+5. When an AI agent makes a request to `http://your-gateway.com/openai/v1/chat/completions`, they must first pay 0.001 USDC, then the request is forwarded to `https://api.your-openai-compatible-service.com/v1/chat/completions` with your API key
 
-## Database Schema
+## Benefits for AI Agents
 
-The SQLite database contains one table:
-
-```sql
-CREATE TABLE proxy_routes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  path TEXT UNIQUE NOT NULL,
-  target_url TEXT NOT NULL,
-  enabled BOOLEAN DEFAULT 1,
-  cost_usdc REAL DEFAULT 0,
-  auth_header TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
+- **No API Key Management**: AI agents don't need to store or manage API credentials
+- **Built-in Micropayments**: Direct payment integration means seamless API access
+- **Cost Predictability**: Know exact cost before making API requests
+- **Decentralized Access**: No central authority controlling API access
+- **Easy Integration**: Standard HTTP/HTTPS interface familiar to all AI frameworks
 
 ## License
 

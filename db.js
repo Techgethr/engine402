@@ -22,6 +22,7 @@ function initDatabase() {
             enabled BOOLEAN DEFAULT 1,
             cost_usdc REAL DEFAULT 0,
             auth_header TEXT,
+            is_test BOOLEAN DEFAULT 1,  -- 1 for test (avalanche-fuji), 0 for production (avalanche)
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -86,8 +87,37 @@ function checkAndAddAuthHeaderColumn() {
     } else {
       console.log('Auth header column added to existing table');
     }
-    // Always try to insert default route
-    insertDefaultRouteIfEmpty();
+
+    // Now check if is_test column exists
+    checkAndAddIsTestColumn();
+  });
+}
+
+// Helper function to check and add is_test column
+function checkAndAddIsTestColumn() {
+  db.all("PRAGMA table_info(proxy_routes)", (err, columns) => {
+    if (err) {
+      console.error('Error getting table schema:', err.message);
+      insertDefaultRouteIfEmpty(); // Continue with default route insertion
+    } else {
+      const hasIsTestColumn = columns.some(col => col.name === 'is_test');
+
+      if (!hasIsTestColumn) {
+        // Add the is_test column to existing table
+        db.run("ALTER TABLE proxy_routes ADD COLUMN is_test BOOLEAN DEFAULT 1", (err) => {
+          if (err) {
+            console.error('Error adding is_test column:', err.message);
+          } else {
+            console.log('is_test column added to existing table (default: test mode)');
+          }
+          // Always try to insert default route
+          insertDefaultRouteIfEmpty();
+        });
+      } else {
+        console.log('is_test column already exists');
+        insertDefaultRouteIfEmpty();
+      }
+    }
   });
 }
 
@@ -98,16 +128,16 @@ function insertDefaultRouteIfEmpty() {
     if (err) {
       console.error('Error checking table count:', err.message);
     } else if (row.count === 0) {
-      // Insert a default route for /api
+      // Insert a default route for /api (defaulting to test mode)
       const defaultRouteSQL = `
-        INSERT INTO proxy_routes (path, target_url, enabled, cost_usdc, auth_header)
-        VALUES ('/api', ?, 1, 0, NULL)
+        INSERT INTO proxy_routes (path, target_url, enabled, cost_usdc, auth_header, is_test)
+        VALUES ('/api', ?, 1, 0, NULL, 1)
       `;
       db.run(defaultRouteSQL, [process.env.API_URL || 'http://localhost:3000'], (err) => {
         if (err) {
           console.error('Error inserting default route:', err.message);
         } else {
-          console.log('Default route for /api added');
+          console.log('Default route for /api added (test mode)');
         }
       });
     }
@@ -157,30 +187,30 @@ function getRouteById(id) {
 }
 
 // Add a new route
-function addRoute(path, target_url, cost_usdc = 0, auth_header = null) {
+function addRoute(path, target_url, cost_usdc = 0, auth_header = null, is_test = true) {
   return new Promise((resolve, reject) => {
-    const sql = 'INSERT INTO proxy_routes (path, target_url, cost_usdc, auth_header, enabled) VALUES (?, ?, ?, ?, 1)';
-    db.run(sql, [path, target_url, cost_usdc || 0, auth_header], function(err) {
+    const sql = 'INSERT INTO proxy_routes (path, target_url, cost_usdc, auth_header, is_test, enabled) VALUES (?, ?, ?, ?, ?, 1)';
+    db.run(sql, [path, target_url, cost_usdc || 0, auth_header, is_test ? 1 : 0], function(err) {
       if (err) {
         console.error('Error adding route:', err.message);
         reject(err);
       } else {
-        resolve({ id: this.lastID, path, target_url, cost_usdc: cost_usdc || 0, auth_header: auth_header, enabled: 1 });
+        resolve({ id: this.lastID, path, target_url, cost_usdc: cost_usdc || 0, auth_header: auth_header, is_test: is_test ? 1 : 0, enabled: 1 });
       }
     });
   });
 }
 
 // Update an existing route
-function updateRoute(id, path, target_url, enabled, cost_usdc, auth_header) {
+function updateRoute(id, path, target_url, enabled, cost_usdc, auth_header, is_test) {
   return new Promise((resolve, reject) => {
-    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, cost_usdc = ?, auth_header = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    db.run(sql, [path, target_url, enabled, cost_usdc || 0, auth_header, id], function(err) {
+    const sql = 'UPDATE proxy_routes SET path = ?, target_url = ?, enabled = ?, cost_usdc = ?, auth_header = ?, is_test = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    db.run(sql, [path, target_url, enabled, cost_usdc || 0, auth_header, is_test ? 1 : 0, id], function(err) {
       if (err) {
         console.error('Error updating route:', err.message);
         reject(err);
       } else {
-        resolve({ changes: this.changes, id, path, target_url, enabled, cost_usdc: cost_usdc || 0, auth_header: auth_header });
+        resolve({ changes: this.changes, id, path, target_url, enabled, cost_usdc: cost_usdc || 0, auth_header: auth_header, is_test: is_test ? 1 : 0 });
       }
     });
   });

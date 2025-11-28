@@ -41,11 +41,14 @@ const paymentChecker = async (req, res, next) => {
     for (const route of enabledRoutes) {
       // Check if the request path starts with the route path
       if (req.path.startsWith(route.path) && route.cost_usdc > 0) {
+        // Determine network based on is_test flag
+        const network = route.is_test ? "avalanche-fuji" : "avalanche";
+
         // If route has a cost greater than 0, apply payment middleware
         const paymentRules = {
           [`${req.method} ${route.path}`]: {
             price: `$${route.cost_usdc}`,
-            network: "avalanche-fuji",
+            network: network,
           },
         };
 
@@ -101,7 +104,7 @@ app.get('/api/routes/:id', async (req, res) => {
 
 app.post('/api/routes', async (req, res) => {
   try {
-    const { path, target_url, enabled, cost_usdc, auth_header } = req.body;
+    const { path, target_url, enabled, cost_usdc, auth_header, is_test } = req.body;
     if (!path || !target_url) {
       return res.status(400).json({ error: 'Path and target URL are required' });
     }
@@ -111,7 +114,7 @@ app.post('/api/routes', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const newRoute = await addRoute(path, target_url, cost_usdc, auth_header);
+    const newRoute = await addRoute(path, target_url, cost_usdc, auth_header, is_test);
     res.status(201).json(newRoute);
   } catch (error) {
     console.error('Error adding route:', error);
@@ -121,7 +124,7 @@ app.post('/api/routes', async (req, res) => {
 
 app.put('/api/routes/:id', async (req, res) => {
   try {
-    const { path, target_url, enabled, cost_usdc, auth_header } = req.body;
+    const { path, target_url, enabled, cost_usdc, auth_header, is_test } = req.body;
     const id = req.params.id;
 
     if (!path || !target_url) {
@@ -133,7 +136,7 @@ app.put('/api/routes/:id', async (req, res) => {
       return res.status(400).json({ error: 'Path must start with /' });
     }
 
-    const updatedRoute = await updateRoute(id, path, target_url, enabled, cost_usdc, auth_header);
+    const updatedRoute = await updateRoute(id, path, target_url, enabled, cost_usdc, auth_header, is_test);
     if (updatedRoute.changes > 0) {
       res.json(updatedRoute);
     } else {

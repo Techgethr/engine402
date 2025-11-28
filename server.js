@@ -2,14 +2,14 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const { createThirdwebClient } = require("thirdweb");
-const { facilitator } = require("thirdweb/x402");
+const { paymentMiddleware } = require("x402-express");
 require('dotenv').config();
 const app = express();
 
 const PORT = process.env.PORT || 4000;
 
-
+const payTo = process.env.PAY_TO;
+const facilitatorUrl = process.env.FACILITATOR_URL;
 
 // Import database functions
 const {
@@ -27,14 +27,52 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const client = createThirdwebClient({
-  secretKey: process.env.THIRDWEB_SECRET_KEY,
-});
+// Middleware for handling payments for routes with cost > 0
+const paymentChecker = async (req, res, next) => {
+  try {
+    // Get all enabled routes from the database
+    const routes = await getAllRoutes();
+    const enabledRoutes = routes.filter(route => route.enabled);
 
-const thirdwebFacilitator = facilitator({
-  client: client,
-  serverWalletAddress: process.env.THIRDWEB_WALLET_ADDRESS,
-});
+    // Sort by path length in descending order to match longer paths first
+    enabledRoutes.sort((a, b) => b.path.length - a.path.length);
+
+    // Find the best matching route for the current request path
+    for (const route of enabledRoutes) {
+      // Check if the request path starts with the route path
+      if (req.path.startsWith(route.path) && route.cost_usdc > 0) {
+        // If route has a cost greater than 0, apply payment middleware
+        const paymentRules = {
+          [`${req.method} ${route.path}`]: {
+            price: `$${route.cost_usdc}`,
+            network: "avalanche-fuji",
+          },
+        };
+
+        const dynamicPaymentMiddleware = paymentMiddleware(
+          payTo,
+          paymentRules,
+          {
+            url: facilitatorUrl,
+          },
+        );
+
+        // Execute the payment middleware and return to prevent further execution
+        return dynamicPaymentMiddleware(req, res, next);
+      }
+    }
+
+    // If no matching route with cost is found, continue without payment requirement
+    next();
+  } catch (error) {
+    console.error('Error in payment checker:', error);
+    // If there's an error retrieving routes, continue without payment for safety
+    next();
+  }
+};
+
+// Apply the payment checker middleware
+app.use(paymentChecker);
 
 // API routes for managing proxy configurations
 app.get('/api/routes', async (req, res) => {
@@ -149,6 +187,9 @@ app.use(async (req, res, next) => {
     for (const route of enabledRoutes) {
       // Check if the request path starts with the route path
       if (req.path.startsWith(route.path)) {
+
+        
+
         // Create proxy middleware options
         const proxyOptions = {
           target: route.target_url,

@@ -12,7 +12,6 @@ A decentralized API gateway that enables common APIs to be adapted for AI agents
 - **Network Flexibility**: Configure routes for test (Avalanche Fuji) or production (Avalanche) networks
 - **Authentication Headers**: Optionally add authorization headers for private endpoints
 - **Persistent Configuration**: Route settings are stored in a database
-- **Request Logging**: Monitor API usage and performance
 
 ## Prerequisites
 
@@ -23,7 +22,7 @@ A decentralized API gateway that enables common APIs to be adapted for AI agents
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Techgethr/engine402.git
    cd Proxy
    ```
 
@@ -41,13 +40,39 @@ The proxy server can be configured using environment variables:
 - `PORT`: Port on which the proxy server will run (default: 4000)
 - `PAY_TO`: Wallet address that receives payments from API usage
 - `FACILITATOR_URL`: URL of the X402 facilitator service (default: `https://facilitator.payai.network`)
+- `USE_SUPABASE`: Set to `true` to use Supabase instead of SQLite (default: `false`)
+- `SUPABASE_URL`: Your Supabase project URL (required if USE_SUPABASE=true)
+- `SUPABASE_ANON_KEY`: Your Supabase anon key (required if USE_SUPABASE=true)
 
-Example `.env` file:
+Example `.env` file for SQLite:
 ```env
 PORT=4000
 PAY_TO=0xYourWalletAddressHere
 FACILITATOR_URL=https://facilitator.payai.network
+API_URL=http://localhost:3000
+USE_SUPABASE=false
 ```
+
+Example `.env` file for Supabase:
+```env
+PORT=4000
+PAY_TO=0xYourWalletAddressHere
+FACILITATOR_URL=https://facilitator.payai.network
+API_URL=http://localhost:3000
+USE_SUPABASE=true
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+## Database Setup
+
+### For SQLite (default)
+No additional setup required. The SQLite database file will be created automatically when the server starts.
+
+### For Supabase
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+2. Copy the SQL from `supabase_schema.sql` and run it in the Supabase SQL editor
+3. Get your Project URL and anon key from Project Settings > API
 
 ## Usage
 

@@ -20,7 +20,7 @@ const {
   addRoute,
   updateRoute,
   deleteRoute
-} = require('./db');
+} = require('./database/db');
 
 // Middleware
 app.use(express.json());

@@ -23,7 +23,7 @@ A decentralized API gateway that enables common APIs to be adapted for AI agents
 1. Clone the repository:
    ```bash
    git clone https://github.com/Techgethr/engine402.git
-   cd Proxy
+   cd engine402
    ```
 
 2. Install dependencies:

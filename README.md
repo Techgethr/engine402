@@ -1,4 +1,4 @@
-# Engine 402 - AI Agent API Gateway
+# Engine 402 - x402 API Gateway
 
 A decentralized API gateway that enables common APIs to be adapted for AI agents through payment-based access instead of traditional API keys. Built with the X402 protocol, it allows developers to monetize their APIs by accepting micropayments in USDC rather than managing API credentials.
 
@@ -11,7 +11,7 @@ A decentralized API gateway that enables common APIs to be adapted for AI agents
 - **Dynamic Pricing**: Set different USDC costs for different API endpoints
 - **Network Flexibility**: Configure routes for test (Avalanche Fuji) or production (Avalanche) networks
 - **Authentication Headers**: Optionally add authorization headers for private endpoints
-- **Persistent Configuration**: Route settings are stored in a database
+- **Persistent Configuration**: Route settings are stored in a database (SQLite or Supabase)
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ A decentralized API gateway that enables common APIs to be adapted for AI agents
    npm install
    ```
 
-3. The SQLite database will be created automatically when the server starts
+3. The SQLite database will be created automatically when the server starts by default
 
 ## Configuration
 
@@ -49,7 +49,6 @@ Example `.env` file for SQLite:
 PORT=4000
 PAY_TO=0xYourWalletAddressHere
 FACILITATOR_URL=https://facilitator.payai.network
-API_URL=http://localhost:3000
 USE_SUPABASE=false
 ```
 
@@ -58,7 +57,6 @@ Example `.env` file for Supabase:
 PORT=4000
 PAY_TO=0xYourWalletAddressHere
 FACILITATOR_URL=https://facilitator.payai.network
-API_URL=http://localhost:3000
 USE_SUPABASE=true
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
